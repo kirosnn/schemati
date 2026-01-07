@@ -40,6 +40,8 @@ npm run dev
 
 4. Open your browser and navigate to `http://localhost:5173`
 
+5. Or online with : https://schemati.vercel.app/
+
 ## Usage
 
 - **Select Tool**: Click and drag to select and move elements
