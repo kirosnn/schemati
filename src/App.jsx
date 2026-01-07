@@ -5,6 +5,7 @@ import Modal from './components/Modal'
 import ProjectManager from './components/ProjectManager'
 import Navbar from './components/Navbar'
 import AgentSidebar from './components/AgentSidebar'
+import MobileWarning from './components/MobileWarning'
 import { useTheme } from './hooks/useTheme'
 import { useHistory } from './hooks/useHistory'
 import { useProjectManager } from './hooks/useProjectManager'
@@ -243,7 +244,15 @@ function App() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-background">
+    <div
+      className="h-screen w-screen flex flex-col bg-background overflow-hidden max-w-[100vw] max-h-[100vh]"
+      style={{
+        height: '100vh',
+        height: '100dvh',
+        minHeight: '-webkit-fill-available'
+      }}
+    >
+      <MobileWarning />
       <input
         ref={fileInputRef}
         type="file"

@@ -91,7 +91,7 @@ function Navbar({
           size="icon"
           onClick={onToggleAgent}
           title="Agent"
-          className="rounded-full relative overflow-hidden select-none active:scale-[0.97] transition-transform"
+          className="hidden lg:flex rounded-full relative overflow-hidden select-none active:scale-[0.97] transition-transform"
         >
           <div className="relative w-5 h-5 flex items-center justify-center">
             <div

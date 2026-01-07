@@ -53,8 +53,33 @@
   * {
     @apply border-border;
   }
+
+  html,
   body {
     @apply bg-background text-foreground;
+  }
+
+  @media (max-width: 1023px) {
+    html {
+      height: 100vh;
+      height: 100dvh;
+      min-height: -webkit-fill-available;
+    }
+
+    html,
+    body {
+      overflow: hidden !important;
+      position: fixed !important;
+      width: 100vw !important;
+      max-width: 100vw !important;
+    }
+
+    body {
+      height: 100vh;
+      height: 100dvh;
+      min-height: -webkit-fill-available;
+      max-height: 100dvh !important;
+    }
   }
 }
 

@@ -17,7 +17,7 @@ export const chatWithMistral = async (messages, onUpdate) => {
           role: msg.role,
           content: msg.content
         })),
-        max_tokens: 2048
+        max_tokens: 4096
       })
     })
 

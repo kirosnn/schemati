@@ -21,7 +21,7 @@ export default async function handler(req) {
 
   try {
     const body = await req.json()
-    const { messages, model = 'devstral-medium-latest', max_tokens = 2048 } = body
+    const { messages, model = 'devstral-medium-latest', max_tokens = 4096 } = body
 
     const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',

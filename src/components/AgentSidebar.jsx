@@ -36,12 +36,11 @@ function AgentSidebar({ agentSidebarOpen, agentSidebarTop }) {
 
   return (
     <div
-      className={`fixed right-0 bottom-0 w-80 bg-card border-l border-border z-40 overflow-hidden transition-all duration-400 ease-out flex flex-col ${
-        agentSidebarOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
-      }`}
+      className={`hidden lg:flex fixed right-0 bottom-0 w-80 bg-card border-l border-border z-40 overflow-hidden transition-all duration-400 ease-out flex-col ${agentSidebarOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+        }`}
       style={{ top: agentSidebarTop }}
     >
-      <div className="p-4 border-b border-border flex items-center justify-between">
+      <div className="p-4 flex items-center justify-between">
         <h2 className="text-xl font-bold select-none">Agent</h2>
         <Button
           variant="ghost"
@@ -61,11 +60,10 @@ function AgentSidebar({ agentSidebarOpen, agentSidebarTop }) {
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[85%] rounded-lg px-4 py-2 ${
-                message.role === 'user'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-foreground'
-              }`}
+              className={`max-w-[85%] rounded-lg px-4 py-2 ${message.role === 'user'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-foreground'
+                }`}
             >
               <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
             </div>
@@ -82,38 +80,36 @@ function AgentSidebar({ agentSidebarOpen, agentSidebarTop }) {
       </div>
 
       <div className="p-4 border-t border-border">
-        <form onSubmit={handleSubmit} className="space-y-2">
+        <form onSubmit={handleSubmit} className="flex gap-2">
           <Textarea
             ref={textareaRef}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type your message..."
-            className="min-h-[60px] max-h-[120px] resize-none"
+            className="min-h-[44px] max-h-[120px] resize-none flex-1"
             disabled={isLoading}
           />
-          <div className="flex gap-2">
-            {isLoading ? (
-              <Button
-                type="button"
-                onClick={stopGeneration}
-                variant="destructive"
-                className="flex-1"
-              >
-                <Square className="h-4 w-4 mr-2" />
-                Stop
-              </Button>
-            ) : (
-              <Button
-                type="submit"
-                disabled={!inputValue.trim() || isLoading}
-                className="flex-1"
-              >
-                <Send className="h-4 w-4 mr-2" />
-                Send
-              </Button>
-            )}
-          </div>
+          {isLoading ? (
+            <Button
+              type="button"
+              onClick={stopGeneration}
+              variant="destructive"
+              size="icon"
+              className="h-11 w-11 shrink-0"
+            >
+              <Square className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              disabled={!inputValue.trim() || isLoading}
+              size="icon"
+              className="h-11 w-11 shrink-0"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          )}
         </form>
       </div>
     </div>

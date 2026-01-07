@@ -32,7 +32,7 @@ export default defineConfig({
 
           req.on('end', async () => {
             try {
-              const { messages, model = 'devstral-medium-latest', max_tokens = 2048 } = JSON.parse(body)
+              const { messages, model = 'devstral-medium-latest', max_tokens = 4096 } = JSON.parse(body)
 
               const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
                 method: 'POST',
