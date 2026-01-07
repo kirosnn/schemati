@@ -3,11 +3,11 @@ import SchemaCanvas from './components/SchemaCanvas'
 import Sidebar from './components/Sidebar'
 import Modal from './components/Modal'
 import ProjectManager from './components/ProjectManager'
+import Navbar from './components/Navbar'
+import AgentSidebar from './components/AgentSidebar'
 import { useTheme } from './hooks/useTheme'
 import { useHistory } from './hooks/useHistory'
 import { useProjectManager } from './hooks/useProjectManager'
-import { Moon, Sun, Github, Star, FolderOpen, Undo, Redo } from 'lucide-react'
-import { Button } from './components/ui/button'
 
 function App() {
   const { theme, toggleTheme } = useTheme()
@@ -32,8 +32,11 @@ function App() {
   const [connections, setConnections] = useState([])
   const [borders, setBorders] = useState([])
   const [projectManagerOpen, setProjectManagerOpen] = useState(false)
+  const [agentSidebarOpen, setAgentSidebarOpen] = useState(false)
+  const [agentSidebarTop, setAgentSidebarTop] = useState(0)
   const fileInputRef = useRef(null)
   const canvasRef = useRef(null)
+  const headerRef = useRef(null)
 
   const {
     projects,
@@ -56,11 +59,10 @@ function App() {
     setBorders(state.borders)
   })
 
-  // Initialize history when component mounts
   useEffect(() => {
     const initialState = { nodes, connections, borders }
     initialize(initialState)
-  }, []) // Empty dependency array - only run once on mount
+  }, [])
 
   useEffect(() => {
     const fetchGithubStars = async () => {
@@ -98,6 +100,19 @@ function App() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [undo, redo, nodes, connections, borders])
+
+  useEffect(() => {
+    const updateAgentSidebarTop = () => {
+      if (headerRef.current) {
+        const rect = headerRef.current.getBoundingClientRect()
+        setAgentSidebarTop(rect.bottom)
+      }
+    }
+
+    updateAgentSidebarTop()
+    window.addEventListener('resize', updateAgentSidebarTop)
+    return () => window.removeEventListener('resize', updateAgentSidebarTop)
+  }, [])
 
   const handleCustomSizeChange = (width, height) => {
     setCustomWidth(width)
@@ -236,75 +251,20 @@ function App() {
         onChange={handleFileChange}
         className="hidden"
       />
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm px-6 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24" className="text-primary-foreground">
-              <path d="M3 4.92857C3 3.90506 3.80497 3 4.88889 3H19.1111C20.195 3 21 3.90506 21 4.92857V13h-3v-2c0-.5523-.4477-1-1-1h-4c-.5523 0-1 .4477-1 1v2H3V4.92857ZM3 15v1.0714C3 17.0949 3.80497 18 4.88889 18h3.47608L7.2318 19.3598c-.35356.4243-.29624 1.0548.12804 1.4084.42428.3536 1.05484.2962 1.40841-.128L10.9684 18h2.0632l2.2002 2.6402c.3535.4242.9841.4816 1.4084.128.4242-.3536.4816-.9841.128-1.4084L15.635 18h3.4761C20.195 18 21 17.0949 21 16.0714V15H3Z"/>
-              <path d="M16 12v1h-2v-1h2Z"/>
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-xl font-bold select-none">Schemati</h1>
-            <p className="text-xs text-muted-foreground select-none">Create diagrams and flowcharts</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={undo}
-            disabled={!canUndo}
-            title="Undo (Ctrl+Z)"
-            className="rounded-full"
-          >
-            <Undo className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={redo}
-            disabled={!canRedo}
-            title="Redo (Ctrl+Y)"
-            className="rounded-full"
-          >
-            <Redo className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setProjectManagerOpen(true)}
-            title="Project Manager (Ctrl+P)"
-            className="rounded-full"
-          >
-            <FolderOpen className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => window.open('https://github.com/kirosnn/schemati', '_blank')}
-            title="View on GitHub"
-            className="rounded-full flex items-center gap-1.5"
-          >
-            <Github className="h-4 w-4" />
-            {githubStars !== null && (
-              <>
-                <Star className="h-3 w-3" />
-                <span className="text-xs font-medium">{githubStars}</span>
-              </>
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleTheme}
-            title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-            className="rounded-full"
-          >
-            {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-          </Button>
-        </div>
-      </header>
+      <Navbar
+        headerRef={headerRef}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onUndo={undo}
+        canUndo={canUndo}
+        onRedo={redo}
+        canRedo={canRedo}
+        onOpenProjectManager={() => setProjectManagerOpen(true)}
+        githubStars={githubStars}
+        onOpenGithub={() => window.open('https://github.com/kirosnn/schemati', '_blank')}
+        agentSidebarOpen={agentSidebarOpen}
+        onToggleAgent={() => setAgentSidebarOpen(!agentSidebarOpen)}
+      />
       <div className="flex-1 flex overflow-hidden">
         <Sidebar
           tool={tool}
@@ -342,32 +302,31 @@ function App() {
         />
         <div className="flex-1">
           <SchemaCanvas
-          ref={canvasRef}
-          tool={tool}
-          nodeShape={nodeShape}
-          nodeColor={nodeColor}
-          nodeSize={nodeSize}
-          customWidth={customWidth}
-          customHeight={customHeight}
-          connectionStyle={connectionStyle}
-          connectionColor={connectionColor}
-          connectionLineStyle={connectionLineStyle}
-          dashLength={dashLength}
-          gapLength={gapLength}
-          borderColor={borderColor}
-          borderWidth={borderWidth}
-          gridEnabled={gridEnabled}
-          gridSize={gridSize}
-          nodes={nodes}
-          connections={connections}
-          borders={borders}
-          onNodesChange={handleNodesChange}
-          onConnectionsChange={handleConnectionsChange}
-          onBordersChange={handleBordersChange}
-          onSnapStateChange={(isSnapping, strength) => {
-            // Optional: could be used for future features
-          }}
-        />
+            ref={canvasRef}
+            tool={tool}
+            nodeShape={nodeShape}
+            nodeColor={nodeColor}
+            nodeSize={nodeSize}
+            customWidth={customWidth}
+            customHeight={customHeight}
+            connectionStyle={connectionStyle}
+            connectionColor={connectionColor}
+            connectionLineStyle={connectionLineStyle}
+            dashLength={dashLength}
+            gapLength={gapLength}
+            borderColor={borderColor}
+            borderWidth={borderWidth}
+            gridEnabled={gridEnabled}
+            gridSize={gridSize}
+            nodes={nodes}
+            connections={connections}
+            borders={borders}
+            onNodesChange={handleNodesChange}
+            onConnectionsChange={handleConnectionsChange}
+            onBordersChange={handleBordersChange}
+            onSnapStateChange={(isSnapping, strength) => {
+            }}
+          />
         </div>
       </div>
       {exportPNGModal && (
@@ -394,8 +353,9 @@ function App() {
         autosaveEnabled={autosaveEnabled}
         onToggleAutosave={toggleAutosave}
       />
+      <AgentSidebar agentSidebarOpen={agentSidebarOpen} agentSidebarTop={agentSidebarTop} />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
