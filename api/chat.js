@@ -10,14 +10,19 @@ export default async function handler(req) {
     })
   }
 
+  const allEnvKeys = Object.keys(process.env)
+  const mistralKeys = allEnvKeys.filter(k => k.toLowerCase().includes('mistral'))
+
   const apiKey = process.env.MISTRAL_API_KEY
 
   if (!apiKey) {
     return new Response(JSON.stringify({
       error: 'API key not configured',
       debug: {
-        hasKey: !!apiKey,
-        envKeys: Object.keys(process.env).filter(k => k.includes('MISTRAL'))
+        allEnvCount: allEnvKeys.length,
+        mistralKeys: mistralKeys,
+        hasMISTRAL_API_KEY: 'MISTRAL_API_KEY' in process.env,
+        value: apiKey ? 'exists' : 'missing'
       }
     }), {
       status: 500,
