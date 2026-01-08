@@ -1,3 +1,5 @@
+import { SYSTEM_PROMPT } from './system-prompt.js'
+
 export const config = {
   runtime: 'edge'
 }
@@ -23,6 +25,11 @@ export default async function handler(req) {
     const body = await req.json()
     const { messages, model = 'devstral-medium-latest', max_tokens = 2048 } = body
 
+    const messagesWithSystem = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...messages
+    ]
+
     const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -31,7 +38,7 @@ export default async function handler(req) {
       },
       body: JSON.stringify({
         model,
-        messages,
+        messages: messagesWithSystem,
         stream: true,
         max_tokens
       })

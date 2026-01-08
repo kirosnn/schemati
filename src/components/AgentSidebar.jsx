@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { ArrowUp, Trash2, Square } from 'lucide-react'
+import Markdown from 'react-markdown'
 import { useAgentChat } from '../hooks/useAgentChat'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
@@ -65,7 +66,13 @@ function AgentSidebar({ agentSidebarOpen, agentSidebarTop }) {
                 : 'bg-muted text-foreground'
                 }`}
             >
-              <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+              {message.role === 'user' ? (
+                <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+              ) : (
+                <div className="text-sm prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-pre:my-2 prose-ul:my-2 prose-ol:my-2">
+                  <Markdown>{message.content}</Markdown>
+                </div>
+              )}
             </div>
           </div>
         ))}
