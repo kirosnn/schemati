@@ -230,32 +230,6 @@ export const AGENT_TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'generate_diagram',
-      description: 'Generate a complete diagram from a description. This can create multiple nodes and connections at once based on a flowchart, process, or structure description.',
-      parameters: {
-        type: 'object',
-        properties: {
-          description: {
-            type: 'string',
-            description: 'Detailed description of the diagram to create (e.g., "login authentication flowchart", "organizational hierarchy")'
-          },
-          clearExisting: {
-            type: 'boolean',
-            description: 'Whether to clear the existing diagram before generating. Default: false'
-          },
-          layout: {
-            type: 'string',
-            enum: ['vertical', 'horizontal', 'hierarchical', 'grid'],
-            description: 'How to arrange the generated nodes. Default: "hierarchical"'
-          }
-        },
-        required: ['description']
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
       name: 'clear_diagram',
       description: 'Clear the entire diagram (remove all nodes, connections, and borders). This is a destructive action that requires explicit confirmation.',
       parameters: {

@@ -260,20 +260,6 @@ export const useAgentActions = ({
           }
         }
 
-        case 'generate_diagram': {
-          if (args.clearExisting) {
-            onNodesChange([])
-            onConnectionsChange([])
-            onBordersChange([])
-          }
-
-          return {
-            success: true,
-            message: `Diagram generation for "${args.description}" with ${args.layout} layout is not yet fully implemented. Please create nodes and connections manually.`,
-            note: 'This feature requires a more sophisticated diagram generation algorithm that is beyond the current implementation scope.'
-          }
-        }
-
         default:
           return { success: false, message: `Unknown action: ${name}` }
       }

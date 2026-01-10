@@ -23,15 +23,6 @@ export const useAgentChat = (diagramContext, onToolCalls) => {
     setError(null)
     setCurrentToolCalls(null)
 
-    const assistantMsg = {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: '',
-      timestamp: new Date()
-    }
-
-    setMessages(prev => [...prev, assistantMsg])
-
     try {
       abortControllerRef.current = new AbortController()
 
@@ -40,14 +31,27 @@ export const useAgentChat = (diagramContext, onToolCalls) => {
         content: msg.content
       }))
 
+      let hasContent = false
+
       const result = await chatWithMistralAndContext(
         apiMessages,
         diagramContext,
         (streamedText) => {
+          if (!hasContent) {
+            hasContent = true
+            const assistantMsg = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: '',
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, assistantMsg])
+          }
+
           setMessages(prev => {
             const newMessages = [...prev]
             const lastMessage = newMessages[newMessages.length - 1]
-            if (lastMessage.role === 'assistant') {
+            if (lastMessage && lastMessage.role === 'assistant') {
               lastMessage.content = streamedText
             }
             return newMessages
@@ -70,18 +74,17 @@ export const useAgentChat = (diagramContext, onToolCalls) => {
       }
     } catch (err) {
       if (err.name === 'AbortError') {
-        setMessages(prev => prev.slice(0, -1))
         return
       }
 
       setError(err.message || 'Failed to send message')
+
       setMessages(prev => {
-        const newMessages = [...prev]
-        const lastMessage = newMessages[newMessages.length - 1]
-        if (lastMessage.role === 'assistant' && !lastMessage.content) {
-          lastMessage.content = 'Sorry, I encountered an error. Please try again.'
+        const lastMessage = prev[prev.length - 1]
+        if (lastMessage && lastMessage.role === 'assistant' && !lastMessage.content) {
+          return prev.slice(0, -1)
         }
-        return newMessages
+        return prev
       })
     } finally {
       setIsLoading(false)

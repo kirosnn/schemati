@@ -13,8 +13,7 @@ const actionTypeLabels = {
   'delete_border': 'Delete border',
   'clear_diagram': 'Clear diagram',
   'move_node': 'Move node',
-  'arrange_nodes': 'Arrange nodes',
-  'generate_diagram': 'Generate diagram'
+  'arrange_nodes': 'Arrange nodes'
 }
 
 const formatActionDescription = (action) => {
@@ -53,9 +52,6 @@ const formatActionDescription = (action) => {
 
     case 'arrange_nodes':
       return `Arrange ${args.nodeIds?.length || 'all'} node(s) in ${args.layout} layout`
-
-    case 'generate_diagram':
-      return `Generate: "${args.description}" (layout: ${args.layout})`
 
     default:
       return `Action: ${name}`

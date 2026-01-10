@@ -53,8 +53,9 @@ App.jsx (State Management)
 8. **delete_border**: Remove borders
 9. **move_node**: Reposition nodes
 10. **arrange_nodes**: Auto-layout in grid/circle/horizontal/vertical
-11. **generate_diagram**: Create complete diagrams from descriptions
-12. **clear_diagram**: Remove all elements
+11. **clear_diagram**: Remove all elements
+
+Note: The agent can call multiple tools at once. When asked to create complete diagrams, it will use multiple create_node and create_connection calls that are all validated together.
 
 ## Auto-Positioning
 
@@ -88,16 +89,21 @@ Vercel: Add in dashboard Settings > Environment Variables
 
 ```
 User: "Create 3 nodes: Login, Dashboard, Settings"
-Agent: Creates 3 nodes with smart positioning
+Agent: Creates 3 nodes with smart positioning (3 create_node calls)
 
 User: "Connect Login to Dashboard"
-Agent: Creates curved connection between nodes
+Agent: Creates curved connection between nodes (1 create_connection call)
+
+User: "Create a login flowchart"
+Agent: Creates multiple nodes (Start, Login, Validate, Success, Error, End)
+      and connections between them (6 create_node + 5 create_connection calls)
+      All presented for validation at once
 
 User: "Arrange all nodes in a grid"
-Agent: Repositions all nodes in grid layout
+Agent: Repositions all nodes in grid layout (1 arrange_nodes call)
 
 User: "How many nodes do I have?"
-Agent: Analyzes and reports node count
+Agent: Analyzes and reports node count (1 analyze_diagram call)
 ```
 
 ## Technical Notes
