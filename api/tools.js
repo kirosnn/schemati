@@ -273,14 +273,14 @@ export const AGENT_TOOLS = [
     type: 'function',
     function: {
       name: 'arrange_nodes',
-      description: 'Auto-arrange all nodes or selected nodes in a specific layout pattern.',
+      description: 'Auto-arrange all nodes or selected nodes in a specific layout pattern. CRITICAL: When the user explicitly chooses a layout (e.g., "horizontal" or "vertical"), you MUST use that EXACT layout value. If user says "horizontal", use layout: "horizontal". If user says "vertical", use layout: "vertical".',
       parameters: {
         type: 'object',
         properties: {
           layout: {
             type: 'string',
             enum: ['horizontal', 'vertical', 'grid', 'circular'],
-            description: 'The layout pattern to apply'
+            description: 'The layout pattern to apply. MUST match the user\'s choice exactly: "horizontal" for left-to-right, "vertical" for top-to-bottom'
           },
           nodeIds: {
             type: 'array',

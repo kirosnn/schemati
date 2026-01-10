@@ -443,23 +443,16 @@ const SchemaCanvas = forwardRef(({
           strokeDasharray = `1,${gapLength}`
         }
 
-        let angle = Math.atan2(to.y - from.y, to.x - from.x)
-
-        if (connection.style === 'orthogonal') {
-          if (Math.abs(to.y - from.y) > 0.1) {
-            angle = to.y > from.y ? Math.PI / 2 : -Math.PI / 2
-          } else {
-            angle = to.x > from.x ? 0 : Math.PI
-          }
-        }
-
-        const arrowOffset = arrowSize * 1.2
-        const adjustedTo = {
-          x: to.x - arrowOffset * Math.cos(angle),
-          y: to.y - arrowOffset * Math.sin(angle)
-        }
+        let angle = 0
+        let adjustedTo = { x: to.x, y: to.y }
 
         if (connection.style === 'straight') {
+          angle = Math.atan2(to.y - from.y, to.x - from.x)
+          const arrowOffset = arrowSize * 1.15
+          adjustedTo = {
+            x: to.x - arrowOffset * Math.cos(angle),
+            y: to.y - arrowOffset * Math.sin(angle)
+          }
           pathD = `M ${from.x} ${from.y} L ${adjustedTo.x} ${adjustedTo.y}`
         } else if (connection.style === 'curved') {
           const curvature = connection.curvature !== undefined ? connection.curvature : 0.5
@@ -467,29 +460,49 @@ const SchemaCanvas = forwardRef(({
           const controlPointOffset = distance * curvature
           const cp1x = from.x + controlPointOffset
           const cp1y = from.y
-          const cp2x = adjustedTo.x - controlPointOffset
-          const cp2y = adjustedTo.y
+          const cp2x = to.x - controlPointOffset
+          const cp2y = to.y
 
-          pathD = `M ${from.x} ${from.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${adjustedTo.x} ${adjustedTo.y}`
+          const derivX = 3 * (cp2x - cp1x)
+          const derivY = 3 * (cp2y - cp1y) + 3 * (to.y - cp2y)
+          angle = Math.atan2(derivY, derivX)
 
-          const t = 0.99
-          const mt = 1 - t
-          const bezierX = mt*mt*mt*from.x + 3*mt*mt*t*cp1x + 3*mt*t*t*cp2x + t*t*t*adjustedTo.x
-          const bezierY = mt*mt*mt*from.y + 3*mt*mt*t*cp1y + 3*mt*t*t*cp2y + t*t*t*adjustedTo.y
-          angle = Math.atan2(adjustedTo.y - bezierY, adjustedTo.x - bezierX)
+          const arrowOffset = arrowSize * 1.15
+          adjustedTo = {
+            x: to.x - arrowOffset * Math.cos(angle),
+            y: to.y - arrowOffset * Math.sin(angle)
+          }
+
+          const adjustedCp2x = adjustedTo.x - controlPointOffset
+          const adjustedCp2y = adjustedTo.y
+          pathD = `M ${from.x} ${from.y} C ${cp1x} ${cp1y}, ${adjustedCp2x} ${adjustedCp2y}, ${adjustedTo.x} ${adjustedTo.y}`
         } else if (connection.style === 'orthogonal') {
-          const midX = (from.x + adjustedTo.x) / 2
+          const midX = (from.x + to.x) / 2
+
+          if (Math.abs(midX - to.x) < 1) {
+            angle = to.y > from.y ? Math.PI / 2 : -Math.PI / 2
+          } else {
+            angle = to.x > midX ? 0 : Math.PI
+          }
+
+          const arrowOffset = arrowSize * 1.15
+          adjustedTo = {
+            x: to.x - arrowOffset * Math.cos(angle),
+            y: to.y - arrowOffset * Math.sin(angle)
+          }
+
           pathD = `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${adjustedTo.y} L ${adjustedTo.x} ${adjustedTo.y}`
         }
 
         svgContent += `  <path d="${pathD}" fill="none" stroke="${color}" stroke-width="${width}" stroke-dasharray="${strokeDasharray}" opacity="${opacity}" stroke-linecap="round" stroke-linejoin="round" />\n`
 
-        const arrowWidth = arrowSize * 0.7
-        const arrowX1 = to.x - arrowSize * Math.cos(angle) + (arrowWidth / 2) * Math.cos(angle + Math.PI / 2)
-        const arrowY1 = to.y - arrowSize * Math.sin(angle) + (arrowWidth / 2) * Math.sin(angle + Math.PI / 2)
-        const arrowX2 = to.x - arrowSize * Math.cos(angle) - (arrowWidth / 2) * Math.cos(angle + Math.PI / 2)
-        const arrowY2 = to.y - arrowSize * Math.sin(angle) - (arrowWidth / 2) * Math.sin(angle + Math.PI / 2)
-        const arrowPoints = `${to.x},${to.y} ${arrowX1},${arrowY1} ${arrowX2},${arrowY2}`
+        const arrowWidth = arrowSize * 0.65
+        const arrowLength = arrowSize
+        const arrowX1 = -arrowLength * Math.cos(angle) + (arrowWidth / 2) * Math.sin(angle)
+        const arrowY1 = -arrowLength * Math.sin(angle) - (arrowWidth / 2) * Math.cos(angle)
+        const arrowX2 = -arrowLength * Math.cos(angle) - (arrowWidth / 2) * Math.sin(angle)
+        const arrowY2 = -arrowLength * Math.sin(angle) + (arrowWidth / 2) * Math.cos(angle)
+        const arrowPoints = `${to.x},${to.y} ${to.x + arrowX1},${to.y + arrowY1} ${to.x + arrowX2},${to.y + arrowY2}`
         svgContent += `  <polygon points="${arrowPoints}" fill="${color}" opacity="${opacity}" />\n`
       })
 
@@ -629,30 +642,23 @@ const SchemaCanvas = forwardRef(({
       ctx.setLineDash([])
     }
 
-    let angle = Math.atan2(to.y - from.y, to.x - from.x)
-
-    if (connection.style === 'orthogonal') {
-      const midX = (from.x + to.x) / 2
-      if (Math.abs(to.y - from.y) > 0.1) {
-        angle = to.y > from.y ? Math.PI / 2 : -Math.PI / 2
-      } else {
-        angle = to.x > from.x ? 0 : Math.PI
-      }
-    }
-
-    let adjustedTo = to
-    if (arrowStyle !== 'none') {
-      const arrowOffset = arrowSize * 1.2
-      adjustedTo = {
-        x: to.x - arrowOffset * Math.cos(angle),
-        y: to.y - arrowOffset * Math.sin(angle)
-      }
-    }
+    let angle = 0
+    let adjustedTo = { x: to.x, y: to.y }
 
     ctx.beginPath()
     ctx.moveTo(from.x, from.y)
 
     if (connection.style === 'straight') {
+      angle = Math.atan2(to.y - from.y, to.x - from.x)
+
+      if (arrowStyle !== 'none') {
+        const arrowOffset = arrowSize * 1.15
+        adjustedTo = {
+          x: to.x - arrowOffset * Math.cos(angle),
+          y: to.y - arrowOffset * Math.sin(angle)
+        }
+      }
+
       ctx.lineTo(adjustedTo.x, adjustedTo.y)
     } else if (connection.style === 'curved') {
       const curvature = connection.curvature !== undefined ? connection.curvature : 0.5
@@ -660,18 +666,43 @@ const SchemaCanvas = forwardRef(({
       const controlPointOffset = distance * curvature
       const cp1x = from.x + controlPointOffset
       const cp1y = from.y
-      const cp2x = adjustedTo.x - controlPointOffset
-      const cp2y = adjustedTo.y
+      const cp2x = to.x - controlPointOffset
+      const cp2y = to.y
 
-      ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, adjustedTo.x, adjustedTo.y)
+      const derivX = 3 * (cp2x - cp1x)
+      const derivY = 3 * (cp2y - cp1y) + 3 * (to.y - cp2y)
+      angle = Math.atan2(derivY, derivX)
 
-      const t = 0.99
-      const mt = 1 - t
-      const bezierX = mt*mt*mt*from.x + 3*mt*mt*t*cp1x + 3*mt*t*t*cp2x + t*t*t*adjustedTo.x
-      const bezierY = mt*mt*mt*from.y + 3*mt*mt*t*cp1y + 3*mt*t*t*cp2y + t*t*t*adjustedTo.y
-      angle = Math.atan2(adjustedTo.y - bezierY, adjustedTo.x - bezierX)
+      if (arrowStyle !== 'none') {
+        const arrowOffset = arrowSize * 1.15
+        adjustedTo = {
+          x: to.x - arrowOffset * Math.cos(angle),
+          y: to.y - arrowOffset * Math.sin(angle)
+        }
+
+        const adjustedCp2x = adjustedTo.x - controlPointOffset
+        const adjustedCp2y = adjustedTo.y
+        ctx.bezierCurveTo(cp1x, cp1y, adjustedCp2x, adjustedCp2y, adjustedTo.x, adjustedTo.y)
+      } else {
+        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, to.x, to.y)
+      }
     } else if (connection.style === 'orthogonal') {
-      const midX = (from.x + adjustedTo.x) / 2
+      const midX = (from.x + to.x) / 2
+
+      if (Math.abs(midX - to.x) < 1) {
+        angle = to.y > from.y ? Math.PI / 2 : -Math.PI / 2
+      } else {
+        angle = to.x > midX ? 0 : Math.PI
+      }
+
+      if (arrowStyle !== 'none') {
+        const arrowOffset = arrowSize * 1.15
+        adjustedTo = {
+          x: to.x - arrowOffset * Math.cos(angle),
+          y: to.y - arrowOffset * Math.sin(angle)
+        }
+      }
+
       ctx.lineTo(midX, from.y)
       ctx.lineTo(midX, adjustedTo.y)
       ctx.lineTo(adjustedTo.x, adjustedTo.y)
@@ -682,7 +713,7 @@ const SchemaCanvas = forwardRef(({
 
     if (arrowStyle !== 'none') {
       const arrowLength = arrowSize
-      const arrowWidth = arrowSize * 0.7
+      const arrowWidth = arrowSize * 0.65
 
       ctx.save()
       ctx.translate(to.x, to.y)
@@ -1060,30 +1091,23 @@ const SchemaCanvas = forwardRef(({
       ctx.setLineDash([])
     }
 
-    let angle = Math.atan2(to.y - from.y, to.x - from.x)
-
-    if (connection.style === 'orthogonal') {
-      const midX = (from.x + to.x) / 2
-      if (Math.abs(to.y - from.y) > 0.1) {
-        angle = to.y > from.y ? Math.PI / 2 : -Math.PI / 2
-      } else {
-        angle = to.x > from.x ? 0 : Math.PI
-      }
-    }
-
-    let adjustedTo = to
-    if (arrowStyle !== 'none') {
-      const arrowOffset = arrowSize * 1.2
-      adjustedTo = {
-        x: to.x - arrowOffset * Math.cos(angle),
-        y: to.y - arrowOffset * Math.sin(angle)
-      }
-    }
+    let angle = 0
+    let adjustedTo = { x: to.x, y: to.y }
 
     ctx.beginPath()
     ctx.moveTo(from.x, from.y)
 
     if (connection.style === 'straight') {
+      angle = Math.atan2(to.y - from.y, to.x - from.x)
+
+      if (arrowStyle !== 'none') {
+        const arrowOffset = arrowSize * 1.15
+        adjustedTo = {
+          x: to.x - arrowOffset * Math.cos(angle),
+          y: to.y - arrowOffset * Math.sin(angle)
+        }
+      }
+
       ctx.lineTo(adjustedTo.x, adjustedTo.y)
     } else if (connection.style === 'curved') {
       const curvature = connection.curvature !== undefined ? connection.curvature : 0.5
@@ -1091,18 +1115,43 @@ const SchemaCanvas = forwardRef(({
       const controlPointOffset = distance * curvature
       const cp1x = from.x + controlPointOffset
       const cp1y = from.y
-      const cp2x = adjustedTo.x - controlPointOffset
-      const cp2y = adjustedTo.y
+      const cp2x = to.x - controlPointOffset
+      const cp2y = to.y
 
-      ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, adjustedTo.x, adjustedTo.y)
+      const derivX = 3 * (cp2x - cp1x)
+      const derivY = 3 * (cp2y - cp1y) + 3 * (to.y - cp2y)
+      angle = Math.atan2(derivY, derivX)
 
-      const t = 0.99
-      const mt = 1 - t
-      const bezierX = mt*mt*mt*from.x + 3*mt*mt*t*cp1x + 3*mt*t*t*cp2x + t*t*t*adjustedTo.x
-      const bezierY = mt*mt*mt*from.y + 3*mt*mt*t*cp1y + 3*mt*t*t*cp2y + t*t*t*adjustedTo.y
-      angle = Math.atan2(adjustedTo.y - bezierY, adjustedTo.x - bezierX)
+      if (arrowStyle !== 'none') {
+        const arrowOffset = arrowSize * 1.15
+        adjustedTo = {
+          x: to.x - arrowOffset * Math.cos(angle),
+          y: to.y - arrowOffset * Math.sin(angle)
+        }
+
+        const adjustedCp2x = adjustedTo.x - controlPointOffset
+        const adjustedCp2y = adjustedTo.y
+        ctx.bezierCurveTo(cp1x, cp1y, adjustedCp2x, adjustedCp2y, adjustedTo.x, adjustedTo.y)
+      } else {
+        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, to.x, to.y)
+      }
     } else if (connection.style === 'orthogonal') {
-      const midX = (from.x + adjustedTo.x) / 2
+      const midX = (from.x + to.x) / 2
+
+      if (Math.abs(midX - to.x) < 1) {
+        angle = to.y > from.y ? Math.PI / 2 : -Math.PI / 2
+      } else {
+        angle = to.x > midX ? 0 : Math.PI
+      }
+
+      if (arrowStyle !== 'none') {
+        const arrowOffset = arrowSize * 1.15
+        adjustedTo = {
+          x: to.x - arrowOffset * Math.cos(angle),
+          y: to.y - arrowOffset * Math.sin(angle)
+        }
+      }
+
       ctx.lineTo(midX, from.y)
       ctx.lineTo(midX, adjustedTo.y)
       ctx.lineTo(adjustedTo.x, adjustedTo.y)
@@ -1113,7 +1162,7 @@ const SchemaCanvas = forwardRef(({
 
     if (arrowStyle !== 'none') {
       const arrowLength = arrowSize
-      const arrowWidth = arrowSize * 0.7
+      const arrowWidth = arrowSize * 0.65
 
       ctx.save()
       ctx.translate(to.x, to.y)
@@ -1684,6 +1733,10 @@ const SchemaCanvas = forwardRef(({
   const handleContextMenu = (e) => {
     e.preventDefault()
 
+    if (isPanning) {
+      return
+    }
+
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
     const screenX = e.clientX - rect.left
@@ -2169,10 +2222,11 @@ const SchemaCanvas = forwardRef(({
     const screenX = e.clientX - rect.left
     const screenY = e.clientY - rect.top
 
-    if (e.button === 1 || (e.button === 0 && e.spaceKey)) {
+    if (e.button === 2 || e.button === 1 || (e.button === 0 && e.spaceKey)) {
       e.preventDefault()
       setIsPanning(true)
       setPanStart({ x: screenX - pan.x, y: screenY - pan.y })
+      canvas.style.cursor = 'grabbing'
       return
     }
 
@@ -2310,6 +2364,10 @@ const SchemaCanvas = forwardRef(({
   }
 
   const handleMouseUp = () => {
+    const canvas = canvasRef.current
+    if (canvas && isPanning) {
+      canvas.style.cursor = ''
+    }
     setIsPanning(false)
     setDraggedNode(null)
     setSnapGuides([])

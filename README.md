@@ -65,7 +65,7 @@ npm run dev
 - **History**: Full undo/redo support with Ctrl+Z/Ctrl+Y
 
 ### Example 
-
+m 
 Schema's AI agent explained by itself :
 
 <img src="schemati-diagram.png" alt="AI Example" width="1000"/>
