@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
 import { Label } from './ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
-import { MousePointer2, Square, Circle, Diamond, ArrowRight, Trash2, Type, Download, Upload, Image, RectangleHorizontal, Pin, PinOff } from 'lucide-react'
+import { MousePointer2, Square, Circle, Diamond, ArrowRight, Trash2, Type, Download, Upload, Image, RectangleHorizontal, Pin, PinOff, AlignHorizontalJustifyStart, AlignHorizontalJustifyEnd, AlignHorizontalJustifyCenter, AlignVerticalJustifyStart, AlignVerticalJustifyEnd, AlignVerticalJustifyCenter, ArrowLeftRight, ArrowUpDown, ChevronsUp, ChevronsDown, ChevronUp, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export default function Sidebar({
@@ -37,7 +37,11 @@ export default function Sidebar({
   onGridSizeChange,
   onExport,
   onExportPNG,
+  onExportSVG,
   onImport,
+  onAlign,
+  onDistribute,
+  onZOrder,
 }) {
   const [isPinned, setIsPinned] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
@@ -524,6 +528,145 @@ export default function Sidebar({
 
           <Card className="shadow-sm">
             <CardHeader className={cn(isSmallScreen && !isPinned ? "pb-2 pt-3" : "pb-3 pt-4")}>
+              <CardTitle className={cn("font-semibold", isSmallScreen && !isPinned ? "text-xs" : "text-sm")}>Alignment</CardTitle>
+            </CardHeader>
+            <CardContent className={cn(isSmallScreen && !isPinned ? "space-y-2" : "space-y-3")}>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">
+                  Align Elements
+                </Label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onAlign('left')}
+                    title="Align Left"
+                    className="p-2"
+                  >
+                    <AlignHorizontalJustifyStart className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onAlign('centerH')}
+                    title="Align Center Horizontal"
+                    className="p-2"
+                  >
+                    <AlignHorizontalJustifyCenter className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onAlign('right')}
+                    title="Align Right"
+                    className="p-2"
+                  >
+                    <AlignHorizontalJustifyEnd className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onAlign('top')}
+                    title="Align Top"
+                    className="p-2"
+                  >
+                    <AlignVerticalJustifyStart className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onAlign('centerV')}
+                    title="Align Center Vertical"
+                    className="p-2"
+                  >
+                    <AlignVerticalJustifyCenter className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onAlign('bottom')}
+                    title="Align Bottom"
+                    className="p-2"
+                  >
+                    <AlignVerticalJustifyEnd className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">
+                  Distribute Elements
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onDistribute('horizontal')}
+                    title="Distribute Horizontally"
+                    className="justify-start"
+                  >
+                    <ArrowLeftRight className="mr-2 h-4 w-4" />
+                    Horizontal
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onDistribute('vertical')}
+                    title="Distribute Vertically"
+                    className="justify-start"
+                  >
+                    <ArrowUpDown className="mr-2 h-4 w-4" />
+                    Vertical
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">
+                  Layer Order
+                </Label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onZOrder('front')}
+                    title="Bring to Front"
+                    className="p-2"
+                  >
+                    <ChevronsUp className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onZOrder('back')}
+                    title="Send to Back"
+                    className="p-2"
+                  >
+                    <ChevronsDown className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onZOrder('forward')}
+                    title="Bring Forward"
+                    className="p-2"
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onZOrder('backward')}
+                    title="Send Backward"
+                    className="p-2"
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm">
+            <CardHeader className={cn(isSmallScreen && !isPinned ? "pb-2 pt-3" : "pb-3 pt-4")}>
               <CardTitle className={cn("font-semibold", isSmallScreen && !isPinned ? "text-xs" : "text-sm")}>Export</CardTitle>
             </CardHeader>
             <CardContent className={cn(isSmallScreen && !isPinned ? "space-y-1.5" : "space-y-2")}>
@@ -535,6 +678,15 @@ export default function Sidebar({
               >
                 <Image className="mr-2 h-4 w-4" />
                 Export as PNG
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                size="sm"
+                onClick={onExportSVG}
+              >
+                <Image className="mr-2 h-4 w-4" />
+                Export as SVG
               </Button>
               <Button
                 variant="outline"

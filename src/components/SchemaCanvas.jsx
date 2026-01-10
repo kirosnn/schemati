@@ -39,12 +39,25 @@ const SchemaCanvas = forwardRef(({
   const [copiedNode, setCopiedNode] = useState(null)
   const [customSizeDialog, setCustomSizeDialog] = useState(null)
   const [selectedElement, setSelectedElement] = useState(null)
+  const [selectedElements, setSelectedElements] = useState([])
+  const [selectionBox, setSelectionBox] = useState(null)
   const [modalConfig, setModalConfig] = useState(null)
   const [hoveredElement, setHoveredElement] = useState(null)
   const [snapGuides, setSnapGuides] = useState([])
   const [isSnapping, setIsSnapping] = useState(false)
   const [snapStrength, setSnapStrength] = useState(0)
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [isPanning, setIsPanning] = useState(false)
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 })
   const inputRef = useRef(null)
+  const zoomRef = useRef(zoom)
+  const panRef = useRef(pan)
+
+  useEffect(() => {
+    zoomRef.current = zoom
+    panRef.current = pan
+  }, [zoom, pan])
 
   const NODE_SIZES = {
     small: { width: 120, height: 60 },
@@ -53,7 +66,225 @@ const SchemaCanvas = forwardRef(({
     custom: { width: customWidth, height: customHeight },
   }
 
+  const screenToCanvas = (screenX, screenY) => {
+    return {
+      x: (screenX - pan.x) / zoom,
+      y: (screenY - pan.y) / zoom
+    }
+  }
+
+  const canvasToScreen = (canvasX, canvasY) => {
+    return {
+      x: canvasX * zoom + pan.x,
+      y: canvasY * zoom + pan.y
+    }
+  }
+
+  const isElementSelected = (type, id) => {
+    return selectedElements.some(el => el.type === type && el.id === id)
+  }
+
+  const isNodeInBox = (node, box) => {
+    const boxLeft = Math.min(box.startX, box.endX)
+    const boxRight = Math.max(box.startX, box.endX)
+    const boxTop = Math.min(box.startY, box.endY)
+    const boxBottom = Math.max(box.startY, box.endY)
+
+    const nodeRight = node.x + node.width
+    const nodeBottom = node.y + node.height
+
+    return node.x < boxRight && nodeRight > boxLeft &&
+           node.y < boxBottom && nodeBottom > boxTop
+  }
+
   useImperativeHandle(ref, () => ({
+    alignSelectedElements: (direction) => {
+      if (selectedElements.length < 2) return
+
+      const selectedNodeIds = selectedElements
+        .filter(el => el.type === 'node')
+        .map(el => el.id)
+
+      const selectedNodes = nodes.filter(node => selectedNodeIds.includes(node.id))
+
+      if (selectedNodes.length < 2) return
+
+      const updatedNodes = nodes.map(node => {
+        if (!selectedNodeIds.includes(node.id)) {
+          return node
+        }
+
+        switch (direction) {
+          case 'left': {
+            const minX = Math.min(...selectedNodes.map(n => n.x))
+            return { ...node, x: minX }
+          }
+          case 'right': {
+            const maxRight = Math.max(...selectedNodes.map(n => n.x + n.width))
+            return { ...node, x: maxRight - node.width }
+          }
+          case 'top': {
+            const minY = Math.min(...selectedNodes.map(n => n.y))
+            return { ...node, y: minY }
+          }
+          case 'bottom': {
+            const maxBottom = Math.max(...selectedNodes.map(n => n.y + n.height))
+            return { ...node, y: maxBottom - node.height }
+          }
+          case 'centerH': {
+            const avgCenterX = selectedNodes.reduce((sum, n) => sum + n.x + n.width / 2, 0) / selectedNodes.length
+            return { ...node, x: avgCenterX - node.width / 2 }
+          }
+          case 'centerV': {
+            const avgCenterY = selectedNodes.reduce((sum, n) => sum + n.y + n.height / 2, 0) / selectedNodes.length
+            return { ...node, y: avgCenterY - node.height / 2 }
+          }
+          default:
+            return node
+        }
+      })
+
+      onNodesChange(updatedNodes)
+    },
+
+    distributeSelectedElements: (direction) => {
+      if (selectedElements.length < 3) return
+
+      const selectedNodeIds = selectedElements
+        .filter(el => el.type === 'node')
+        .map(el => el.id)
+
+      const selectedNodes = nodes
+        .filter(node => selectedNodeIds.includes(node.id))
+        .sort((a, b) => direction === 'horizontal' ? a.x - b.x : a.y - b.y)
+
+      if (selectedNodes.length < 3) return
+
+      const first = selectedNodes[0]
+      const last = selectedNodes[selectedNodes.length - 1]
+
+      const positionMap = new Map()
+
+      if (direction === 'horizontal') {
+        const totalSpace = (last.x + last.width) - first.x
+        const totalNodeWidth = selectedNodes.reduce((sum, n) => sum + n.width, 0)
+        const gap = (totalSpace - totalNodeWidth) / (selectedNodes.length - 1)
+
+        let currentX = first.x
+
+        selectedNodes.forEach((node, index) => {
+          if (index === 0) {
+            positionMap.set(node.id, node.x)
+          } else if (index === selectedNodes.length - 1) {
+            positionMap.set(node.id, node.x)
+          } else {
+            currentX += selectedNodes[index - 1].width + gap
+            positionMap.set(node.id, currentX)
+          }
+        })
+      } else {
+        const totalSpace = (last.y + last.height) - first.y
+        const totalNodeHeight = selectedNodes.reduce((sum, n) => sum + n.height, 0)
+        const gap = (totalSpace - totalNodeHeight) / (selectedNodes.length - 1)
+
+        let currentY = first.y
+
+        selectedNodes.forEach((node, index) => {
+          if (index === 0) {
+            positionMap.set(node.id, node.y)
+          } else if (index === selectedNodes.length - 1) {
+            positionMap.set(node.id, node.y)
+          } else {
+            currentY += selectedNodes[index - 1].height + gap
+            positionMap.set(node.id, currentY)
+          }
+        })
+      }
+
+      const updatedNodes = nodes.map(node => {
+        if (!positionMap.has(node.id)) {
+          return node
+        }
+
+        if (direction === 'horizontal') {
+          return { ...node, x: positionMap.get(node.id) }
+        } else {
+          return { ...node, y: positionMap.get(node.id) }
+        }
+      })
+
+      onNodesChange(updatedNodes)
+    },
+
+    changeZOrder: (action) => {
+      if (selectedElements.length === 0) return
+
+      const selectedNodeIds = selectedElements
+        .filter(el => el.type === 'node')
+        .map(el => el.id)
+
+      if (selectedNodeIds.length === 0) return
+
+      const updatedNodes = [...nodes]
+
+      switch (action) {
+        case 'front': {
+          const selected = []
+          const others = []
+
+          updatedNodes.forEach(node => {
+            if (selectedNodeIds.includes(node.id)) {
+              selected.push(node)
+            } else {
+              others.push(node)
+            }
+          })
+
+          onNodesChange([...others, ...selected])
+          break
+        }
+        case 'back': {
+          const selected = []
+          const others = []
+
+          updatedNodes.forEach(node => {
+            if (selectedNodeIds.includes(node.id)) {
+              selected.push(node)
+            } else {
+              others.push(node)
+            }
+          })
+
+          onNodesChange([...selected, ...others])
+          break
+        }
+        case 'forward': {
+          const newOrder = [...updatedNodes]
+
+          for (let i = newOrder.length - 2; i >= 0; i--) {
+            if (selectedNodeIds.includes(newOrder[i].id) && !selectedNodeIds.includes(newOrder[i + 1].id)) {
+              [newOrder[i], newOrder[i + 1]] = [newOrder[i + 1], newOrder[i]]
+            }
+          }
+
+          onNodesChange(newOrder)
+          break
+        }
+        case 'backward': {
+          const newOrder = [...updatedNodes]
+
+          for (let i = 1; i < newOrder.length; i++) {
+            if (selectedNodeIds.includes(newOrder[i].id) && !selectedNodeIds.includes(newOrder[i - 1].id)) {
+              [newOrder[i], newOrder[i - 1]] = [newOrder[i - 1], newOrder[i]]
+            }
+          }
+
+          onNodesChange(newOrder)
+          break
+        }
+      }
+    },
+
     exportToPNG: (options = {}) => {
       const {
         filename = 'schemati-diagram',
@@ -132,6 +363,142 @@ const SchemaCanvas = forwardRef(({
       link.download = `${filename}.png`
       link.href = tempCanvas.toDataURL('image/png')
       link.click()
+    },
+
+    exportToSVG: (options = {}) => {
+      const {
+        filename = 'schemati-diagram',
+        cropToContent = true,
+        padding = 50
+      } = options
+
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+
+      if (cropToContent && (nodes.length > 0 || borders.length > 0)) {
+        nodes.forEach(node => {
+          minX = Math.min(minX, node.x)
+          minY = Math.min(minY, node.y)
+          maxX = Math.max(maxX, node.x + node.width)
+          maxY = Math.max(maxY, node.y + node.height)
+        })
+
+        borders.forEach(border => {
+          minX = Math.min(minX, border.x)
+          minY = Math.min(minY, border.y)
+          maxX = Math.max(maxX, border.x + border.w)
+          maxY = Math.max(maxY, border.y + border.h)
+        })
+
+        minX -= padding
+        minY -= padding
+        maxX += padding
+        maxY += padding
+      } else {
+        const canvas = canvasRef.current
+        if (!canvas) return
+        const rect = canvas.getBoundingClientRect()
+        minX = 0
+        minY = 0
+        maxX = rect.width
+        maxY = rect.height
+      }
+
+      const width = maxX - minX
+      const height = maxY - minY
+
+      let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${minX} ${minY} ${width} ${height}">\n`
+
+      svgContent += `  <defs>\n`
+      svgContent += `    <style>\n`
+      svgContent += `      .node-text { font-family: system-ui, -apple-system, sans-serif; text-anchor: middle; dominant-baseline: middle; }\n`
+      svgContent += `    </style>\n`
+      svgContent += `  </defs>\n\n`
+
+      borders.forEach(border => {
+        const { x, y, w, h, color, lineWidth, backgroundColor = 'transparent', backgroundOpacity = 0, opacity = 1, borderRadius = 0 } = border
+
+        if (backgroundColor !== 'transparent' && backgroundOpacity > 0) {
+          svgContent += `  <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${borderRadius}" fill="${backgroundColor}" fill-opacity="${backgroundOpacity}" opacity="${opacity}" />\n`
+        }
+
+        svgContent += `  <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${borderRadius}" fill="none" stroke="${color}" stroke-width="${lineWidth}" opacity="${opacity}" />\n`
+      })
+
+      connections.forEach(connection => {
+        const fromNode = nodes.find(n => n.id === connection.from)
+        const toNode = nodes.find(n => n.id === connection.to)
+        if (!fromNode || !toNode) return
+
+        const from = getNodeEdgePoint(fromNode, toNode)
+        const to = getNodeEdgePoint(toNode, fromNode)
+
+        const { color, width = 2.5, opacity = 1, lineStyle = 'solid', dashLength = 8, gapLength = 4, arrowSize = 12 } = connection
+
+        let pathD = ''
+        let strokeDasharray = 'none'
+
+        if (lineStyle === 'dashed') {
+          strokeDasharray = `${dashLength},${gapLength}`
+        } else if (lineStyle === 'dotted') {
+          strokeDasharray = `1,${gapLength}`
+        }
+
+        const arrowOffset = arrowSize * 1.1
+        const angle = Math.atan2(to.y - from.y, to.x - from.x)
+        const adjustedTo = {
+          x: to.x - arrowOffset * Math.cos(angle),
+          y: to.y - arrowOffset * Math.sin(angle)
+        }
+
+        if (connection.style === 'straight') {
+          pathD = `M ${from.x} ${from.y} L ${adjustedTo.x} ${adjustedTo.y}`
+        } else if (connection.style === 'curved') {
+          const curvature = connection.curvature !== undefined ? connection.curvature : 0.5
+          const distance = Math.sqrt(Math.pow(adjustedTo.x - from.x, 2) + Math.pow(adjustedTo.y - from.y, 2))
+          const controlPointOffset = distance * curvature
+          pathD = `M ${from.x} ${from.y} C ${from.x + controlPointOffset} ${from.y}, ${adjustedTo.x - controlPointOffset} ${adjustedTo.y}, ${adjustedTo.x} ${adjustedTo.y}`
+        } else if (connection.style === 'orthogonal') {
+          const midX = (from.x + adjustedTo.x) / 2
+          pathD = `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${adjustedTo.y} L ${adjustedTo.x} ${adjustedTo.y}`
+        }
+
+        svgContent += `  <path d="${pathD}" fill="none" stroke="${color}" stroke-width="${width}" stroke-dasharray="${strokeDasharray}" opacity="${opacity}" stroke-linecap="round" stroke-linejoin="round" />\n`
+
+        const arrowPoints = `${adjustedTo.x},${adjustedTo.y} ${adjustedTo.x - arrowSize * Math.cos(angle - Math.PI / 7)},${adjustedTo.y - arrowSize * Math.sin(angle - Math.PI / 7)} ${adjustedTo.x - arrowSize * Math.cos(angle + Math.PI / 7)},${adjustedTo.y - arrowSize * Math.sin(angle + Math.PI / 7)}`
+        svgContent += `  <polygon points="${arrowPoints}" fill="${color}" opacity="${opacity}" />\n`
+      })
+
+      nodes.forEach(node => {
+        const { x, y, width, height, shape, label, backgroundColor = '#ffffff', borderColor = node.color || '#3b82f6', borderWidth = 2.5, borderRadius = 8, opacity = 1, fontSize = 14, fontColor = '#1f2937', fontWeight = '500' } = node
+
+        if (shape === 'rectangle') {
+          svgContent += `  <rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${borderRadius}" fill="${backgroundColor}" stroke="${borderColor}" stroke-width="${borderWidth}" opacity="${opacity}" />\n`
+        } else if (shape === 'circle') {
+          const radius = Math.min(width, height) / 2
+          const cx = x + width / 2
+          const cy = y + height / 2
+          svgContent += `  <circle cx="${cx}" cy="${cy}" r="${radius}" fill="${backgroundColor}" stroke="${borderColor}" stroke-width="${borderWidth}" opacity="${opacity}" />\n`
+        } else if (shape === 'diamond') {
+          const points = `${x + width / 2},${y} ${x + width},${y + height / 2} ${x + width / 2},${y + height} ${x},${y + height / 2}`
+          svgContent += `  <polygon points="${points}" fill="${backgroundColor}" stroke="${borderColor}" stroke-width="${borderWidth}" opacity="${opacity}" />\n`
+        }
+
+        if (label) {
+          const textX = x + width / 2
+          const textY = y + height / 2
+          svgContent += `  <text x="${textX}" y="${textY}" class="node-text" fill="${fontColor}" font-size="${fontSize}" font-weight="${fontWeight}" opacity="${opacity}">${label}</text>\n`
+        }
+      })
+
+      svgContent += `</svg>`
+
+      const blob = new Blob([svgContent], { type: 'image/svg+xml' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.download = `${filename}.svg`
+      link.href = url
+      link.click()
+      URL.revokeObjectURL(url)
     }
   }))
 
@@ -374,6 +741,10 @@ const SchemaCanvas = forwardRef(({
 
     ctx.clearRect(0, 0, rect.width, rect.height)
 
+    ctx.save()
+    ctx.translate(pan.x, pan.y)
+    ctx.scale(zoom, zoom)
+
     if (gridEnabled) {
       drawGrid(ctx, rect.width, rect.height)
     }
@@ -412,7 +783,24 @@ const SchemaCanvas = forwardRef(({
     if (nodeStart) {
       drawTempNode(ctx, nodeStart.start, nodeStart.current, nodeStart.shape)
     }
-  }, [nodes, connections, borders, connectionStart, borderStart, nodeStart, gridEnabled, gridSize, selectedElement, snapGuides])
+
+    if (selectionBox) {
+      const x = Math.min(selectionBox.startX, selectionBox.endX)
+      const y = Math.min(selectionBox.startY, selectionBox.endY)
+      const width = Math.abs(selectionBox.endX - selectionBox.startX)
+      const height = Math.abs(selectionBox.endY - selectionBox.startY)
+
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.1)'
+      ctx.strokeStyle = '#3b82f6'
+      ctx.lineWidth = 1.5
+      ctx.setLineDash([5, 3])
+      ctx.fillRect(x, y, width, height)
+      ctx.strokeRect(x, y, width, height)
+      ctx.setLineDash([])
+    }
+
+    ctx.restore()
+  }, [nodes, connections, borders, connectionStart, borderStart, nodeStart, gridEnabled, gridSize, selectedElement, selectedElements, selectionBox, snapGuides, zoom, pan])
 
   useEffect(() => {
     redraw()
@@ -453,11 +841,73 @@ const SchemaCanvas = forwardRef(({
         }
         onNodesChange([...nodes, newNode])
       }
+
+      if (e.key === '0' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault()
+        setZoom(1)
+        setPan({ x: 0, y: 0 })
+      }
+
+      if (e.key === 'a' && (e.ctrlKey || e.metaKey) && !editingNode) {
+        e.preventDefault()
+        const allElements = nodes.map(node => ({ type: 'node', id: node.id }))
+        setSelectedElements(allElements)
+      }
+
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElements.length > 0 && !editingNode) {
+        e.preventDefault()
+        const selectedNodeIds = selectedElements
+          .filter(el => el.type === 'node')
+          .map(el => el.id)
+
+        onNodesChange(nodes.filter(node => !selectedNodeIds.includes(node.id)))
+        onConnectionsChange(connections.filter(c => !selectedNodeIds.includes(c.from) && !selectedNodeIds.includes(c.to)))
+        setSelectedElements([])
+      }
+
+      if (e.key === 'Escape') {
+        setSelectedElements([])
+        setSelectionBox(null)
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [nodes, copiedNode, editingNode, onNodesChange])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const handleWheel = (e) => {
+      e.preventDefault()
+      const rect = canvas.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left
+      const mouseY = e.clientY - rect.top
+
+      const currentZoom = zoomRef.current
+      const currentPan = panRef.current
+
+      const canvasPoint = {
+        x: (mouseX - currentPan.x) / currentZoom,
+        y: (mouseY - currentPan.y) / currentZoom
+      }
+
+      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1
+      const newZoom = Math.min(Math.max(0.1, currentZoom * zoomFactor), 5)
+
+      const newPan = {
+        x: mouseX - canvasPoint.x * newZoom,
+        y: mouseY - canvasPoint.y * newZoom
+      }
+
+      setZoom(newZoom)
+      setPan(newPan)
+    }
+
+    canvas.addEventListener('wheel', handleWheel, { passive: false })
+    return () => canvas.removeEventListener('wheel', handleWheel)
+  }, [])
 
   const drawNode = (ctx, node) => {
     const {
@@ -478,7 +928,7 @@ const SchemaCanvas = forwardRef(({
       textAlign = 'center'
     } = node
 
-    const isSelected = selectedElement && selectedElement.type === 'node' && selectedElement.id === node.id
+    const isSelected = (selectedElement && selectedElement.type === 'node' && selectedElement.id === node.id) || isElementSelected('node', node.id)
 
     ctx.globalAlpha = opacity
     ctx.fillStyle = backgroundColor
@@ -1142,8 +1592,9 @@ const SchemaCanvas = forwardRef(({
   const handleCanvasClick = (e) => {
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const screenX = e.clientX - rect.left
+    const screenY = e.clientY - rect.top
+    const { x, y } = screenToCanvas(screenX, screenY)
 
     const clickedNode = getClickedNode(x, y)
 
@@ -1191,8 +1642,9 @@ const SchemaCanvas = forwardRef(({
 
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const screenX = e.clientX - rect.left
+    const screenY = e.clientY - rect.top
+    const { x, y } = screenToCanvas(screenX, screenY)
 
     const clickedNode = getClickedNode(x, y)
     const clickedConnection = getClickedConnection(x, y)
@@ -1656,8 +2108,9 @@ const SchemaCanvas = forwardRef(({
 
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const screenX = e.clientX - rect.left
+    const screenY = e.clientY - rect.top
+    const { x, y } = screenToCanvas(screenX, screenY)
 
     const clickedNode = getClickedNode(x, y)
     if (clickedNode) {
@@ -1669,14 +2122,39 @@ const SchemaCanvas = forwardRef(({
   const handleMouseDown = (e) => {
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const screenX = e.clientX - rect.left
+    const screenY = e.clientY - rect.top
+
+    if (e.button === 1 || (e.button === 0 && e.spaceKey)) {
+      e.preventDefault()
+      setIsPanning(true)
+      setPanStart({ x: screenX - pan.x, y: screenY - pan.y })
+      return
+    }
+
+    const { x, y } = screenToCanvas(screenX, screenY)
 
     if (tool === 'select') {
       const clickedNode = getClickedNode(x, y)
       if (clickedNode) {
-        setDraggedNode(clickedNode)
-        setOffset({ x: x - clickedNode.x, y: y - clickedNode.y })
+        if (e.ctrlKey || e.metaKey) {
+          if (isElementSelected('node', clickedNode.id)) {
+            setSelectedElements(selectedElements.filter(el => !(el.type === 'node' && el.id === clickedNode.id)))
+          } else {
+            setSelectedElements([...selectedElements, { type: 'node', id: clickedNode.id }])
+          }
+        } else {
+          if (!isElementSelected('node', clickedNode.id)) {
+            setSelectedElements([{ type: 'node', id: clickedNode.id }])
+          }
+          setDraggedNode(clickedNode)
+          setOffset({ x: x - clickedNode.x, y: y - clickedNode.y })
+        }
+      } else {
+        if (!(e.ctrlKey || e.metaKey)) {
+          setSelectedElements([])
+        }
+        setSelectionBox({ startX: x, startY: y, endX: x, endY: y })
       }
     } else if (tool === 'border') {
       const snappedX = snapToGrid(x)
@@ -1699,8 +2177,18 @@ const SchemaCanvas = forwardRef(({
   const handleMouseMove = (e) => {
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const screenX = e.clientX - rect.left
+    const screenY = e.clientY - rect.top
+
+    if (isPanning) {
+      setPan({
+        x: screenX - panStart.x,
+        y: screenY - panStart.y
+      })
+      return
+    }
+
+    const { x, y } = screenToCanvas(screenX, screenY)
 
     const clickedNode = getClickedNode(x, y)
     const clickedConnection = getClickedConnection(x, y)
@@ -1718,6 +2206,10 @@ const SchemaCanvas = forwardRef(({
 
     if (tool === 'connection' && connectionStart) {
       setConnectionStart({ ...connectionStart, mousePos: { x, y } })
+    }
+
+    if (selectionBox) {
+      setSelectionBox({ ...selectionBox, endX: x, endY: y })
     }
 
     if (tool === 'border' && borderStart) {
@@ -1743,13 +2235,30 @@ const SchemaCanvas = forwardRef(({
       setIsSnapping(guides.length > 0)
       setSnapStrength(strength)
 
-      onNodesChange(
-        nodes.map(node =>
-          node.id === draggedNode.id
-            ? { ...node, x: snappedX, y: snappedY }
-            : node
+      const deltaX = snappedX - draggedNode.x
+      const deltaY = snappedY - draggedNode.y
+
+      if (selectedElements.length > 1 && isElementSelected('node', draggedNode.id)) {
+        const selectedNodeIds = selectedElements
+          .filter(el => el.type === 'node')
+          .map(el => el.id)
+
+        onNodesChange(
+          nodes.map(node =>
+            selectedNodeIds.includes(node.id)
+              ? { ...node, x: node.x + deltaX, y: node.y + deltaY }
+              : node
+          )
         )
-      )
+      } else {
+        onNodesChange(
+          nodes.map(node =>
+            node.id === draggedNode.id
+              ? { ...node, x: snappedX, y: snappedY }
+              : node
+          )
+        )
+      }
     } else {
       setSnapGuides([])
       setIsSnapping(false)
@@ -1757,10 +2266,24 @@ const SchemaCanvas = forwardRef(({
   }
 
   const handleMouseUp = () => {
+    setIsPanning(false)
     setDraggedNode(null)
     setSnapGuides([])
     setIsSnapping(false)
     setSnapStrength(0)
+
+    if (selectionBox) {
+      const width = Math.abs(selectionBox.endX - selectionBox.startX)
+      const height = Math.abs(selectionBox.endY - selectionBox.startY)
+
+      if (width > 5 && height > 5) {
+        const selectedNodes = nodes.filter(node => isNodeInBox(node, selectionBox))
+        const newSelection = selectedNodes.map(node => ({ type: 'node', id: node.id }))
+        setSelectedElements(newSelection)
+      }
+
+      setSelectionBox(null)
+    }
 
     if (tool === 'border' && borderStart) {
       const x = Math.min(borderStart.start.x, borderStart.current.x)
@@ -1844,7 +2367,7 @@ const SchemaCanvas = forwardRef(({
         ref={canvasRef}
         className="w-full h-full"
         style={{
-          cursor: tool === 'select'
+          cursor: isPanning ? 'grabbing' : tool === 'select'
             ? (isSnapping ? 'crosshair' : hoveredElement ? 'pointer' : draggedNode ? 'grabbing' : 'default')
             : (tool === 'delete' && hoveredElement ? 'pointer' : 'crosshair')
         }}
@@ -1867,10 +2390,10 @@ const SchemaCanvas = forwardRef(({
           onSubmit={handleEditSubmit}
           style={{
             position: 'absolute',
-            left: editingNode.x,
-            top: editingNode.y,
-            width: editingNode.width,
-            height: editingNode.height,
+            left: editingNode.x * zoom + pan.x,
+            top: editingNode.y * zoom + pan.y,
+            width: editingNode.width * zoom,
+            height: editingNode.height * zoom,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1884,7 +2407,7 @@ const SchemaCanvas = forwardRef(({
             onChange={(e) => setEditText(e.target.value)}
             onBlur={handleEditBlur}
             className="w-full h-full text-center bg-white dark:bg-gray-900 border-2 border-blue-500 rounded-lg px-3 outline-none text-foreground shadow-lg"
-            style={{ fontSize: '14px', fontWeight: '500' }}
+            style={{ fontSize: `${14 * zoom}px`, fontWeight: '500' }}
           />
         </form>
       )}
@@ -1905,6 +2428,11 @@ const SchemaCanvas = forwardRef(({
           onSubmit={modalConfig.onSubmit}
         />
       )}
+      <div className="absolute bottom-4 right-4 bg-background/90 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-lg pointer-events-none select-none">
+        <div className="text-xs font-medium text-foreground">
+          {Math.round(zoom * 100)}%
+        </div>
+      </div>
     </div>
   )
 })

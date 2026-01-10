@@ -214,6 +214,34 @@ function App() {
     })
   }
 
+  const handleExportSVG = () => {
+    if (canvasRef.current) {
+      canvasRef.current.exportToSVG({
+        filename: 'schemati-diagram',
+        cropToContent: true,
+        padding: 50
+      })
+    }
+  }
+
+  const handleAlign = useCallback((direction) => {
+    if (canvasRef.current) {
+      canvasRef.current.alignSelectedElements(direction)
+    }
+  }, [])
+
+  const handleDistribute = useCallback((direction) => {
+    if (canvasRef.current) {
+      canvasRef.current.distributeSelectedElements(direction)
+    }
+  }, [])
+
+  const handleZOrder = useCallback((action) => {
+    if (canvasRef.current) {
+      canvasRef.current.changeZOrder(action)
+    }
+  }, [])
+
   const handleImport = () => {
     fileInputRef.current?.click()
   }
@@ -307,7 +335,11 @@ function App() {
           onGridSizeChange={setGridSize}
           onExport={handleExport}
           onExportPNG={handleExportPNG}
+          onExportSVG={handleExportSVG}
           onImport={handleImport}
+          onAlign={handleAlign}
+          onDistribute={handleDistribute}
+          onZOrder={handleZOrder}
         />
         <div className="flex-1">
           <SchemaCanvas
@@ -362,7 +394,16 @@ function App() {
         autosaveEnabled={autosaveEnabled}
         onToggleAutosave={toggleAutosave}
       />
-      <AgentSidebar agentSidebarOpen={agentSidebarOpen} agentSidebarTop={agentSidebarTop} />
+      <AgentSidebar
+        agentSidebarOpen={agentSidebarOpen}
+        agentSidebarTop={agentSidebarTop}
+        nodes={nodes}
+        connections={connections}
+        borders={borders}
+        onNodesChange={handleNodesChange}
+        onConnectionsChange={handleConnectionsChange}
+        onBordersChange={handleBordersChange}
+      />
     </div>
   );
 }

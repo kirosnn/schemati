@@ -1,4 +1,5 @@
 import { SYSTEM_PROMPT } from './system-prompt.js'
+import { AGENT_TOOLS } from './tools.js'
 
 export const config = {
   runtime: 'edge'
@@ -40,7 +41,9 @@ export default async function handler(req) {
         model,
         messages: messagesWithSystem,
         stream: true,
-        max_tokens
+        max_tokens,
+        tools: AGENT_TOOLS,
+        tool_choice: 'auto'
       })
     })
 

@@ -1,15 +1,57 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { ArrowUp, Trash2, Square } from 'lucide-react'
 import Markdown from 'react-markdown'
 import { useAgentChat } from '../hooks/useAgentChat'
+import { useAgentActions } from '../hooks/useAgentActions'
+import ActionValidation from './ActionValidation'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
 
-function AgentSidebar({ agentSidebarOpen, agentSidebarTop }) {
-  const { messages, isLoading, error, sendMessage, clearChat, stopGeneration } = useAgentChat()
+function AgentSidebar({
+  agentSidebarOpen,
+  agentSidebarTop,
+  nodes,
+  connections,
+  borders,
+  onNodesChange,
+  onConnectionsChange,
+  onBordersChange
+}) {
   const [inputValue, setInputValue] = useState('')
+  const [isExecuting, setIsExecuting] = useState(false)
   const messagesEndRef = useRef(null)
   const textareaRef = useRef(null)
+
+  const {
+    pendingActions,
+    setPendingActions,
+    executePendingActions,
+    rejectPendingActions
+  } = useAgentActions({
+    nodes,
+    connections,
+    borders,
+    onNodesChange,
+    onConnectionsChange,
+    onBordersChange
+  })
+
+  const diagramContext = { nodes, connections, borders }
+
+  const handleToolCalls = useCallback((toolCalls) => {
+    setPendingActions(toolCalls)
+  }, [setPendingActions])
+
+  const {
+    messages,
+    isLoading,
+    error,
+    currentToolCalls,
+    sendMessage,
+    clearChat,
+    stopGeneration,
+    clearToolCalls
+  } = useAgentChat(diagramContext, handleToolCalls)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -35,6 +77,31 @@ function AgentSidebar({ agentSidebarOpen, agentSidebarTop }) {
     }
   }
 
+  const handleValidateActions = async () => {
+    if (!pendingActions || pendingActions.length === 0) return
+
+    setIsExecuting(true)
+    try {
+      const result = await executePendingActions(pendingActions)
+      clearToolCalls()
+
+      if (result.success) {
+        console.log('Actions executed successfully:', result)
+      } else {
+        console.error('Some actions failed:', result)
+      }
+    } catch (err) {
+      console.error('Error executing actions:', err)
+    } finally {
+      setIsExecuting(false)
+    }
+  }
+
+  const handleRejectActions = () => {
+    rejectPendingActions()
+    clearToolCalls()
+  }
+
   return (
     <div
       className={`hidden lg:flex fixed right-0 bottom-0 w-80 bg-card border-l border-border z-40 overflow-hidden transition-all duration-400 ease-out flex-col ${agentSidebarOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
@@ -55,6 +122,15 @@ function AgentSidebar({ agentSidebarOpen, agentSidebarTop }) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {pendingActions && pendingActions.length > 0 && (
+          <ActionValidation
+            actions={pendingActions}
+            onValidate={handleValidateActions}
+            onReject={handleRejectActions}
+            isExecuting={isExecuting}
+          />
+        )}
+
         {messages.map((message) => (
           <div
             key={message.id}

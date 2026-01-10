@@ -1,10 +1,11 @@
 import { useState, useCallback, useRef } from 'react'
-import { chatWithMistral } from '../services/mistralService'
+import { chatWithMistralAndContext } from '../services/mistralService'
 
-export const useAgentChat = () => {
+export const useAgentChat = (diagramContext, onToolCalls) => {
   const [messages, setMessages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [currentToolCalls, setCurrentToolCalls] = useState(null)
   const abortControllerRef = useRef(null)
 
   const sendMessage = useCallback(async (userMessage) => {
@@ -20,6 +21,7 @@ export const useAgentChat = () => {
     setMessages(prev => [...prev, userMsg])
     setIsLoading(true)
     setError(null)
+    setCurrentToolCalls(null)
 
     const assistantMsg = {
       id: (Date.now() + 1).toString(),
@@ -38,16 +40,34 @@ export const useAgentChat = () => {
         content: msg.content
       }))
 
-      await chatWithMistral(apiMessages, (streamedText) => {
-        setMessages(prev => {
-          const newMessages = [...prev]
-          const lastMessage = newMessages[newMessages.length - 1]
-          if (lastMessage.role === 'assistant') {
-            lastMessage.content = streamedText
+      const result = await chatWithMistralAndContext(
+        apiMessages,
+        diagramContext,
+        (streamedText) => {
+          setMessages(prev => {
+            const newMessages = [...prev]
+            const lastMessage = newMessages[newMessages.length - 1]
+            if (lastMessage.role === 'assistant') {
+              lastMessage.content = streamedText
+            }
+            return newMessages
+          })
+        },
+        (toolCalls) => {
+          setCurrentToolCalls(toolCalls)
+          if (onToolCalls) {
+            onToolCalls(toolCalls)
           }
-          return newMessages
-        })
-      }, abortControllerRef.current.signal)
+        },
+        abortControllerRef.current.signal
+      )
+
+      if (result.toolCalls && result.toolCalls.length > 0) {
+        setCurrentToolCalls(result.toolCalls)
+        if (onToolCalls) {
+          onToolCalls(result.toolCalls)
+        }
+      }
     } catch (err) {
       if (err.name === 'AbortError') {
         setMessages(prev => prev.slice(0, -1))
@@ -67,11 +87,12 @@ export const useAgentChat = () => {
       setIsLoading(false)
       abortControllerRef.current = null
     }
-  }, [messages, isLoading])
+  }, [messages, isLoading, diagramContext, onToolCalls])
 
   const clearChat = useCallback(() => {
     setMessages([])
     setError(null)
+    setCurrentToolCalls(null)
   }, [])
 
   const stopGeneration = useCallback(() => {
@@ -81,12 +102,18 @@ export const useAgentChat = () => {
     }
   }, [])
 
+  const clearToolCalls = useCallback(() => {
+    setCurrentToolCalls(null)
+  }, [])
+
   return {
     messages,
     isLoading,
     error,
+    currentToolCalls,
     sendMessage,
     clearChat,
-    stopGeneration
+    stopGeneration,
+    clearToolCalls
   }
 }
