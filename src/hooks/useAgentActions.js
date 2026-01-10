@@ -44,7 +44,7 @@ export const useAgentActions = ({
 
           let position = { x: args.x, y: args.y }
           if (args.x === 'auto' || args.y === 'auto') {
-            position = calculateAutoPosition(nodes, 'horizontal')
+            position = calculateAutoPosition(nodes, 'smart')
           }
 
           const newNode = createNode({

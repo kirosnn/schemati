@@ -122,15 +122,6 @@ function AgentSidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {pendingActions && pendingActions.length > 0 && (
-          <ActionValidation
-            actions={pendingActions}
-            onValidate={handleValidateActions}
-            onReject={handleRejectActions}
-            isExecuting={isExecuting}
-          />
-        )}
-
         {messages.map((message) => (
           <div
             key={message.id}
@@ -163,6 +154,16 @@ function AgentSidebar({
       </div>
 
       <div className="p-4 bg-transparent">
+        {pendingActions && pendingActions.length > 0 && (
+          <div className="mb-3">
+            <ActionValidation
+              actions={pendingActions}
+              onValidate={handleValidateActions}
+              onReject={handleRejectActions}
+              isExecuting={isExecuting}
+            />
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="relative">
           <Textarea
             ref={textareaRef}

@@ -80,12 +80,12 @@ export const validateNodeParams = (params) => {
   return { valid: errors.length === 0, errors }
 }
 
-export const calculateAutoPosition = (existingNodes, layout = 'horizontal', options = {}) => {
+export const calculateAutoPosition = (existingNodes, layout = 'smart', options = {}) => {
   const {
     startX = 100,
     startY = 100,
-    spacing = 200,
-    verticalSpacing = 150
+    spacing = 250,
+    verticalSpacing = 180
   } = options
 
   if (existingNodes.length === 0) {
@@ -109,6 +109,43 @@ export const calculateAutoPosition = (existingNodes, layout = 'horizontal', opti
     return {
       x: startX + (col * spacing),
       y: startY + (row * verticalSpacing)
+    }
+  }
+
+  if (layout === 'smart') {
+    const occupiedPositions = existingNodes.map(n => ({
+      x: n.x,
+      y: n.y,
+      width: n.width || 150,
+      height: n.height || 80
+    }))
+
+    const nodeWidth = 150
+    const nodeHeight = 80
+    const minDistance = 200
+
+    const isPositionOccupied = (x, y) => {
+      return occupiedPositions.some(pos => {
+        const dx = Math.abs(x - pos.x)
+        const dy = Math.abs(y - pos.y)
+        return dx < minDistance && dy < minDistance
+      })
+    }
+
+    const candidates = []
+    for (let row = 0; row < 10; row++) {
+      for (let col = 0; col < 10; col++) {
+        const x = startX + (col * spacing)
+        const y = startY + (row * verticalSpacing)
+        if (!isPositionOccupied(x, y)) {
+          candidates.push({ x, y, distance: Math.sqrt(col * col + row * row) })
+        }
+      }
+    }
+
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => a.distance - b.distance)
+      return { x: candidates[0].x, y: candidates[0].y }
     }
   }
 

@@ -3,18 +3,18 @@ import { Button } from './ui/button'
 import { Card } from './ui/card'
 
 const actionTypeLabels = {
-  'analyze_diagram': 'Analyser le diagramme',
-  'create_node': 'Créer un nœud',
-  'update_node': 'Modifier un nœud',
-  'delete_node': 'Supprimer un nœud',
-  'create_connection': 'Créer une connexion',
-  'delete_connection': 'Supprimer une connexion',
-  'create_border': 'Créer une bordure',
-  'delete_border': 'Supprimer une bordure',
-  'clear_diagram': 'Effacer le diagramme',
-  'move_node': 'Déplacer un nœud',
-  'arrange_nodes': 'Réarranger les nœuds',
-  'generate_diagram': 'Générer un diagramme'
+  'analyze_diagram': 'Analyze diagram',
+  'create_node': 'Create node',
+  'update_node': 'Update node',
+  'delete_node': 'Delete node',
+  'create_connection': 'Create connection',
+  'delete_connection': 'Delete connection',
+  'create_border': 'Create border',
+  'delete_border': 'Delete border',
+  'clear_diagram': 'Clear diagram',
+  'move_node': 'Move node',
+  'arrange_nodes': 'Arrange nodes',
+  'generate_diagram': 'Generate diagram'
 }
 
 const formatActionDescription = (action) => {
@@ -22,40 +22,40 @@ const formatActionDescription = (action) => {
 
   switch (name) {
     case 'analyze_diagram':
-      return `Analyser: "${args.query}"`
+      return `Analyze: "${args.query}"`
 
     case 'create_node':
-      return `Créer "${args.label}" (${args.shape || 'rectangle'}, ${args.color || 'bleu'})`
+      return `Create "${args.label}" (${args.shape || 'rectangle'}, ${args.color || 'blue'})`
 
     case 'update_node':
-      return `Modifier le nœud "${args.nodeId}"`
+      return `Update node "${args.nodeId}"`
 
     case 'delete_node':
-      return `Supprimer le nœud "${args.nodeId}"`
+      return `Delete node "${args.nodeId}"`
 
     case 'create_connection':
-      return `Connecter "${args.fromNodeId}" → "${args.toNodeId}" (${args.style || 'curved'})`
+      return `Connect "${args.fromNodeId}" → "${args.toNodeId}" (${args.style || 'curved'})`
 
     case 'delete_connection':
-      return `Supprimer la connexion "${args.connectionId}"`
+      return `Delete connection "${args.connectionId}"`
 
     case 'create_border':
-      return `Créer une bordure à (${args.x}, ${args.y}), taille ${args.width}×${args.height}`
+      return `Create border at (${args.x}, ${args.y}), size ${args.width}×${args.height}`
 
     case 'delete_border':
-      return `Supprimer la bordure "${args.borderId}"`
+      return `Delete border "${args.borderId}"`
 
     case 'clear_diagram':
-      return 'Effacer tout le diagramme'
+      return 'Clear entire diagram'
 
     case 'move_node':
-      return `Déplacer "${args.nodeId}" vers (${args.x}, ${args.y})`
+      return `Move "${args.nodeId}" to (${args.x}, ${args.y})`
 
     case 'arrange_nodes':
-      return `Réarranger ${args.nodeIds?.length || 'tous les'} nœud(s) en ${args.layout}`
+      return `Arrange ${args.nodeIds?.length || 'all'} node(s) in ${args.layout} layout`
 
     case 'generate_diagram':
-      return `Générer: "${args.description}" (layout: ${args.layout})`
+      return `Generate: "${args.description}" (layout: ${args.layout})`
 
     default:
       return `Action: ${name}`
@@ -91,20 +91,20 @@ function ActionValidation({ actions, onValidate, onReject, isExecuting }) {
   if (!actions || actions.length === 0) return null
 
   return (
-    <Card className="p-4 mb-4 bg-accent/50 border-accent">
-      <div className="flex items-start justify-between mb-3">
+    <Card className="p-3 bg-accent/50 border-accent">
+      <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-          <h3 className="font-semibold text-sm">L'agent propose des actions</h3>
+          <h3 className="font-semibold text-xs">Agent proposes actions</h3>
         </div>
-        <span className="text-xs text-muted-foreground">{actions.length} action(s)</span>
+        <span className="text-xs text-muted-foreground">{actions.length}</span>
       </div>
 
-      <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
+      <div className="space-y-1.5 mb-3 max-h-32 overflow-y-auto">
         {actions.map((action, index) => (
           <div
             key={index}
-            className="flex items-start gap-2 p-2 rounded bg-background/50 text-sm"
+            className="flex items-start gap-2 p-1.5 rounded bg-background/50 text-sm"
           >
             <div className="mt-0.5">
               {getActionIcon(action.function.name)}
@@ -128,8 +128,8 @@ function ActionValidation({ actions, onValidate, onReject, isExecuting }) {
           className="flex-1"
           size="sm"
         >
-          <Check className="w-4 h-4 mr-1" />
-          {isExecuting ? 'Exécution...' : 'Valider tout'}
+          <Check className="w-3 h-3 mr-1" />
+          {isExecuting ? 'Executing...' : 'Approve'}
         </Button>
         <Button
           onClick={onReject}
@@ -137,8 +137,8 @@ function ActionValidation({ actions, onValidate, onReject, isExecuting }) {
           variant="outline"
           size="sm"
         >
-          <X className="w-4 h-4 mr-1" />
-          Rejeter
+          <X className="w-3 h-3 mr-1" />
+          Reject
         </Button>
       </div>
     </Card>
