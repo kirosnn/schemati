@@ -43,7 +43,7 @@ export const useAgentActions = ({
           }
 
           let position = { x: args.x, y: args.y }
-          if (args.x === 'auto' || args.y === 'auto') {
+          if (args.x === 'auto' || args.y === 'auto' || args.x === undefined || args.y === undefined) {
             position = calculateAutoPosition(nodes, 'smart')
           }
 
@@ -53,11 +53,11 @@ export const useAgentActions = ({
             y: position.y
           })
 
-          onNodesChange([...nodes, newNode])
           return {
             success: true,
             message: `Created node "${args.label}"`,
-            data: newNode
+            data: newNode,
+            newNode: newNode
           }
         }
 
@@ -274,15 +274,96 @@ export const useAgentActions = ({
     }
 
     const results = []
+    let tempNodes = [...nodes]
+    let tempConnections = [...connections]
+    let tempBorders = [...borders]
 
     for (const action of actionsToExecute) {
-      const result = executeAction(action)
+      const actionName = action.function.name
+      const args = action.function.arguments
+
+      let result
+
+      if (actionName === 'create_node') {
+        const validation = validateNodeParams(args)
+        if (!validation.valid) {
+          result = { success: false, message: validation.errors.join(', ') }
+        } else {
+          let position = { x: args.x, y: args.y }
+          if (args.x === 'auto' || args.y === 'auto' || args.x === undefined || args.y === undefined) {
+            position = calculateAutoPosition(tempNodes, 'smart')
+          }
+
+          const newNode = createNode({
+            ...args,
+            x: position.x,
+            y: position.y
+          })
+
+          tempNodes.push(newNode)
+          result = {
+            success: true,
+            message: `Created node "${args.label}"`,
+            data: newNode
+          }
+        }
+      } else if (actionName === 'create_connection') {
+        const fromNode = findNodeByIdOrLabel(tempNodes, args.fromNodeId)
+        const toNode = findNodeByIdOrLabel(tempNodes, args.toNodeId)
+
+        const validation = validateConnectionParams(
+          {
+            fromNodeId: args.fromNodeId,
+            toNodeId: args.toNodeId,
+            style: args.style,
+            lineStyle: args.lineStyle
+          },
+          tempNodes
+        )
+
+        if (!validation.valid) {
+          result = { success: false, message: validation.errors.join(', ') }
+        } else {
+          const existingConnection = tempConnections.find(
+            c => c.from === fromNode.id && c.to === toNode.id
+          )
+
+          if (existingConnection) {
+            result = {
+              success: false,
+              message: `Connection already exists between "${fromNode.label}" and "${toNode.label}"`
+            }
+          } else {
+            const newConnection = createConnection({
+              fromNodeId: fromNode.id,
+              toNodeId: toNode.id,
+              style: args.style,
+              color: args.color,
+              lineStyle: args.lineStyle
+            })
+
+            tempConnections.push(newConnection)
+            result = {
+              success: true,
+              message: `Connected "${fromNode.label}" to "${toNode.label}"`,
+              data: newConnection
+            }
+          }
+        }
+      } else {
+        result = executeAction(action)
+      }
+
       results.push({ action, result })
 
       if (!result.success) {
         console.error(`Action failed:`, action, result.message)
       }
     }
+
+    onNodesChange(tempNodes)
+    onConnectionsChange(tempConnections)
+    onBordersChange(tempBorders)
 
     setPendingActions(null)
 
@@ -294,7 +375,7 @@ export const useAgentActions = ({
       message: `Executed ${successCount} action(s)${failCount > 0 ? `, ${failCount} failed` : ''}`,
       results
     }
-  }, [executeAction])
+  }, [nodes, connections, borders, executeAction, onNodesChange, onConnectionsChange, onBordersChange])
 
   const rejectPendingActions = useCallback(() => {
     setPendingActions(null)
